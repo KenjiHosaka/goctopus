@@ -9,7 +9,7 @@ Easy to run goroutine
 
 ## Installation
 ```
-go get github.com/KenjiHosak/goctopus
+go get github.com/KenjiHosaka/goctopus
 ```
 
 ## How to use
