@@ -45,17 +45,17 @@ err := goctopus.Orchestrate(
 	}), 
 )()
 
-err := Orchestrate(
+err := goctopus.Orchestrate(
 	context.Background(), 
-	Task(func() error {
+	goctopus.Task(func() error {
 		// ...
 		return nil
 	}), 
-	Task(func() error {
+	goctopus.Task(func() error {
 		// ...
 		return nil
 	}), 
-)(TimeOut{
+)(goctopus.TimeOut{
 	Duration: 1 * time.Second,
 })
 ```
