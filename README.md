@@ -43,5 +43,5 @@ err := goctopus.Orchestrate(
 		res3.value = true
 		return nil
 	}), 
-)
+)()
 ```
