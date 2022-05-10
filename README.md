@@ -14,46 +14,33 @@ go get github.com/KenjiHosaka/goctopus
 
 ## How to use
 ```golang
-type MutexBool struct {
-	mu    sync.RWMutex
-	value bool
-}
-var res1, res2, res3 MutexBool
-
-err := goctopus.Orchestrate(
+outputs, err := goctopus.Orchestrate(
 	context.Background(), 
-	goctopus.Task(func() error {
-		res1.mu.Lock()
-		defer res1.mu.Unlock()
-		time.Sleep(10 * time.Millisecond)
-		res1.value = true
-		return nil
+	goctopus.Task(func() (bool, error) {
+		return true, nil
 	}), 
-	goctopus.Task(func() error {
-		res2.mu.Lock()
-		defer res2.mu.Unlock()
-		time.Sleep(10 * time.Millisecond)
-		res2.value = true
-		return nil
+	goctopus.Task(func() (string, error) {
+		return "result", nil
 	}), 
-	goctopus.Task(func() error {
-		res3.mu.Lock()
-		defer res3.mu.Unlock()
-		time.Sleep(10 * time.Millisecond)
-		res3.value = true
-		return nil
+	goctopus.Task(func() (int, error) {
+		return 0, nil
 	}), 
 )()
 
-err := goctopus.Orchestrate(
+// get result
+task1Res, err := outputs.GetResult(0)
+task1Res.(bool)
+
+
+outputs, err := goctopus.Orchestrate(
 	context.Background(), 
-	goctopus.Task(func() error {
+	goctopus.Task(func() (bool, error) {
 		// ...
-		return nil
+		return true, nil
 	}), 
-	goctopus.Task(func() error {
+	goctopus.Task(func() (bool, error) {
 		// ...
-		return nil
+		return true, nil
 	}), 
 )(goctopus.TimeOut{
 	Duration: 1 * time.Second,
