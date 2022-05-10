@@ -5,12 +5,17 @@ import (
 	"time"
 )
 
-type AsyncTask func(ctx context.Context) error
+type taskResult struct {
+	value any
+	index int
+}
 
-type OrchestrationTask func(...Option) error
+type AsyncTask func(ctx context.Context) (taskResult, error)
 
-func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationTask {
-	return func(opts ...Option) error {
+type OrchestrationFunc func(...Option) (Outputs, error)
+
+func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationFunc {
+	return func(opts ...Option) (Outputs, error) {
 		options := Options{}
 		for _, opt := range opts {
 			opt.apply(&options)
@@ -28,10 +33,10 @@ func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationTask {
 
 		recoverCh := make(chan interface{}, len(tasks))
 		errCh := make(chan error, len(tasks))
-		doneCh := make(chan bool, len(tasks))
+		doneCh := make(chan taskResult, len(tasks))
 
-		for _, task := range tasks {
-			go func(t AsyncTask) {
+		for i, task := range tasks {
+			go func(t AsyncTask, index int) {
 				defer func() {
 					r := recover()
 					if r != nil {
@@ -39,56 +44,59 @@ func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationTask {
 					}
 				}()
 
-				if err := t(c); err != nil {
+				res, err := t(c)
+
+				if err != nil {
 					errCh <- err
 					return
 				}
 
-				doneCh <- true
-			}(task)
+				res.index = index
+				doneCh <- res
+			}(task, i)
 		}
 
+		results := make(map[int]Output, len(tasks))
 		for i := 0; i < len(tasks); i++ {
 			select {
 			case <-c.Done():
-				return c.Err()
-			case <-doneCh:
+				return nil, c.Err()
+			case res := <-doneCh:
+				results[res.index] = Output{
+					result: res.value,
+				}
 			case err := <-errCh:
-				return err
+				return nil, err
 			case r := <-recoverCh:
 				panic(r)
 			}
 		}
 
-		return nil
+		return results, nil
 	}
 }
 
-func Task(f func() error) AsyncTask {
-	return func(ctx context.Context) error {
-		ch := make(chan error, 1)
+func Task[T any](f func() (T, error)) AsyncTask {
+	return func(ctx context.Context) (taskResult, error) {
+		errCh := make(chan error, 1)
+		resCh := make(chan T, 1)
 		go func() {
-			ch <- f()
+			res, e := f()
+			if e != nil {
+				errCh <- e
+			}
+
+			resCh <- res
 		}()
 
 		select {
 		case <-ctx.Done():
-			<-ch
-			return ctx.Err()
-		case err := <-ch:
-			return err
+			res := <-resCh
+			return taskResult{value: res}, ctx.Err()
+		case err := <-errCh:
+			return taskResult{}, err
+		case res := <-resCh:
+			return taskResult{value: res}, nil
 		}
-	}
-}
-
-func Tasks(tasks ...AsyncTask) AsyncTask {
-	return func(ctx context.Context) error {
-		for _, task := range tasks {
-			if err := task(ctx); err != nil {
-				return err
-			}
-		}
-
-		return nil
 	}
 }
