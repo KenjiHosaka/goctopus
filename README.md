@@ -14,34 +14,37 @@ go get github.com/KenjiHosaka/goctopus
 
 ## How to use
 ```golang
+// simple example
 outputs, err := goctopus.Orchestrate(
 	context.Background(), 
-	goctopus.Task(func() (bool, error) {
+	goctopus.NewTask[bool](func() (bool, error) {
 		return true, nil
-	}), 
-	goctopus.Task(func() (string, error) {
+	}).Run(), 
+	goctopus.NewTask[string](func() (string, error) {
 		return "result", nil
-	}), 
-	goctopus.Task(func() (int, error) {
+	}).Run(), 
+	goctopus.NewTask[int](func() (int, error) {
 		return 0, nil
-	}), 
+	}).Run(), 
 )()
 
-// get result
-task1Res, err := outputs.GetResult(0)
-task1Res.(bool)
-
+// get result example
+task1 := goctopus.NewTask[bool](func() (bool, error) {
+	time.Sleep(10 * time.Millisecond)
+	return true, nil
+})
 
 outputs, err := goctopus.Orchestrate(
 	context.Background(), 
-	goctopus.Task(func() (bool, error) {
-		// ...
-		return true, nil
-	}), 
-	goctopus.Task(func() (bool, error) {
-		// ...
-		return true, nil
-	}), 
+	task1.Run(),
+)()
+res, exist := goctopus.FindResult(outputs, task1)
+// res: true
+
+// timeout example
+outputs, err := goctopus.Orchestrate(
+	context.Background(), 
+	task1.Run(), 
 )(goctopus.TimeOut{
 	Duration: 1 * time.Second,
 })

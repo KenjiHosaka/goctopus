@@ -1,18 +1,12 @@
 package goctopus
 
-import "errors"
-
 type Output struct {
 	result any
 }
 
-type Outputs map[int]Output
+type Outputs map[uint32]Output
 
-func (os Outputs) GetResult(taskIndex int) (any, error) {
-	o, exist := os[taskIndex]
-	if !exist {
-		return nil, errors.New("not exist index")
-	}
-
-	return o.result, nil
+func FindResult[T any](outputs Outputs, task Task[T]) (T, bool) {
+	val, exist := outputs[task.id].result.(T)
+	return val, exist
 }
