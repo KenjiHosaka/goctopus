@@ -2,12 +2,13 @@ package goctopus
 
 import (
 	"context"
+	"math/rand"
 	"time"
 )
 
 type taskResult struct {
-	value any
-	index int
+	taskID uint32
+	value  any
 }
 
 type AsyncTask func(ctx context.Context) (taskResult, error)
@@ -35,8 +36,8 @@ func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationFunc {
 		errCh := make(chan error, len(tasks))
 		doneCh := make(chan taskResult, len(tasks))
 
-		for i, task := range tasks {
-			go func(t AsyncTask, index int) {
+		for _, task := range tasks {
+			go func(t AsyncTask) {
 				defer func() {
 					r := recover()
 					if r != nil {
@@ -51,18 +52,17 @@ func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationFunc {
 					return
 				}
 
-				res.index = index
 				doneCh <- res
-			}(task, i)
+			}(task)
 		}
 
-		results := make(map[int]Output, len(tasks))
+		results := make(map[uint32]Output, len(tasks))
 		for i := 0; i < len(tasks); i++ {
 			select {
 			case <-c.Done():
 				return nil, c.Err()
 			case res := <-doneCh:
-				results[res.index] = Output{
+				results[res.taskID] = Output{
 					result: res.value,
 				}
 			case err := <-errCh:
@@ -76,12 +76,24 @@ func Orchestrate(ctx context.Context, tasks ...AsyncTask) OrchestrationFunc {
 	}
 }
 
-func Task[T any](f func() (T, error)) AsyncTask {
+func NewTask[T any](f func() (T, error)) Task[T] {
+	return Task[T]{
+		id: rand.Uint32(),
+		f:  f,
+	}
+}
+
+type Task[T any] struct {
+	id uint32
+	f  func() (T, error)
+}
+
+func (t Task[T]) Run() AsyncTask {
 	return func(ctx context.Context) (taskResult, error) {
 		errCh := make(chan error, 1)
 		resCh := make(chan T, 1)
 		go func() {
-			res, e := f()
+			res, e := t.f()
 			if e != nil {
 				errCh <- e
 			}
@@ -92,11 +104,11 @@ func Task[T any](f func() (T, error)) AsyncTask {
 		select {
 		case <-ctx.Done():
 			res := <-resCh
-			return taskResult{value: res}, ctx.Err()
+			return taskResult{taskID: t.id, value: res}, ctx.Err()
 		case err := <-errCh:
 			return taskResult{}, err
 		case res := <-resCh:
-			return taskResult{value: res}, nil
+			return taskResult{taskID: t.id, value: res}, nil
 		}
 	}
 }
