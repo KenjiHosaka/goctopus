@@ -13,8 +13,8 @@ go get github.com/KenjiHosaka/goctopus
 ```
 
 ## How to use
+### Simple
 ```golang
-// simple example
 outputs, err := goctopus.Orchestrate(
 	context.Background(), 
 	goctopus.NewTask[bool](func() (bool, error) {
@@ -27,8 +27,10 @@ outputs, err := goctopus.Orchestrate(
 		return 0, nil
 	}).Run(), 
 )()
+```
 
-// get result example
+### Get Result
+```golang
 task1 := goctopus.NewTask[bool](func() (bool, error) {
 	time.Sleep(10 * time.Millisecond)
 	return true, nil
@@ -40,12 +42,18 @@ outputs, err := goctopus.Orchestrate(
 )()
 res, exist := goctopus.FindResult(outputs, task1)
 // res: true
+```
 
-// timeout example
+### Set Timeout
+```golang
 outputs, err := goctopus.Orchestrate(
 	context.Background(), 
-	task1.Run(), 
+	goctopus.NewTask[bool](func() (bool, error) {
+		return true, nil
+	}).Run(), 
 )(goctopus.TimeOut{
 	Duration: 1 * time.Second,
 })
 ```
+
+
