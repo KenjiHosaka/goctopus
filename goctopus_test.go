@@ -22,7 +22,7 @@ func TestOrchestrate_SuccessAllTasks(test *testing.T) {
 	})
 
 	start := time.Now()
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -33,11 +33,8 @@ func TestOrchestrate_SuccessAllTasks(test *testing.T) {
 	if diff > 100*time.Millisecond {
 		test.Errorf("Too late")
 	}
-	res1, _ := FindResult(outputs, task1)
-	res2, _ := FindResult(outputs, task2)
-	res3, _ := FindResult(outputs, task3)
 
-	if err != nil || !(res1 && res2 == "test" && res3) {
+	if err != nil || !(task1.result && task2.Result() == "test" && task3.Result()) {
 		test.Errorf("One or more failed")
 	}
 }
@@ -52,7 +49,7 @@ func TestOrchestrate_TimeOut(test *testing.T) {
 		return true, nil
 	})
 
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -63,8 +60,7 @@ func TestOrchestrate_TimeOut(test *testing.T) {
 		test.Errorf("Failed to handle error")
 	}
 
-	_, exist := FindResult(outputs, task2)
-	if exist {
+	if task2.Result() {
 		test.Errorf("Failed to cancel task2")
 	}
 }
@@ -79,11 +75,11 @@ func TestOrchestrate_CancelTask(test *testing.T) {
 		return "", errors.New("task2 error occurred")
 	})
 	task3 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		return true, nil
 	})
 
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -93,8 +89,7 @@ func TestOrchestrate_CancelTask(test *testing.T) {
 		test.Errorf("Failed to handle error")
 	}
 
-	_, exist := FindResult(outputs, task3)
-	if exist {
+	if task3.Result() {
 		test.Errorf("Failed to cancel task3")
 	}
 }
