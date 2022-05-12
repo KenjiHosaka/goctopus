@@ -13,7 +13,6 @@ go get github.com/KenjiHosaka/goctopus
 ```
 
 ## How to use
-### Simple
 ```golang
 task1 := goctopus.NewTask[bool](func(ctx context.Context) (bool, error) {
 	return true, nil
