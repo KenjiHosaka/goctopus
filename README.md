@@ -15,11 +15,11 @@ go get github.com/KenjiHosaka/goctopus
 ## How to use
 ### Simple
 ```golang
-task1 := goctopus.NewTask[bool](func() (bool, error) {
+task1 := goctopus.NewTask[bool](func(ctx context.Context) (bool, error) {
 	return true, nil
 })
 
-task2 := goctopus.NewTask[string](func() (string, error) {
+task2 := goctopus.NewTask[string](func(ctx context.Context) (string, error) {
 	return "result", nil
 })
 

@@ -5,20 +5,52 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 )
 
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
+
 func TestOrchestrate_SuccessAllTasks(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[string](func() (string, error) {
-		time.Sleep(10 * time.Millisecond)
-		return "test", nil
+	task2 := NewTask[string](func(ctx context.Context) (string, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-t.C:
+				return "test", nil
+			}
+		}
 	})
-	task3 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	task3 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
 	start := time.Now()
@@ -40,13 +72,31 @@ func TestOrchestrate_SuccessAllTasks(test *testing.T) {
 }
 
 func TestOrchestrate_TimeOut(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[bool](func() (bool, error) {
-		time.Sleep(2 * time.Second)
-		return true, nil
+	task2 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
 	err := Orchestrate(
@@ -66,17 +116,43 @@ func TestOrchestrate_TimeOut(test *testing.T) {
 }
 
 func TestOrchestrate_CancelTask(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[string](func() (string, error) {
-		time.Sleep(20 * time.Millisecond)
-		return "", errors.New("task2 error occurred")
+	task2 := NewTask[string](func(ctx context.Context) (string, error) {
+		t := time.NewTicker(20 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-t.C:
+				return "", errors.New("task2 error occurred")
+			}
+		}
 	})
-	task3 := NewTask[bool](func() (bool, error) {
-		time.Sleep(50 * time.Millisecond)
-		return true, nil
+	task3 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
 	err := Orchestrate(
