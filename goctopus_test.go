@@ -5,24 +5,56 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 )
 
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
+
 func TestOrchestrate_SuccessAllTasks(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[string](func() (string, error) {
-		time.Sleep(10 * time.Millisecond)
-		return "test", nil
+	task2 := NewTask[string](func(ctx context.Context) (string, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-t.C:
+				return "test", nil
+			}
+		}
 	})
-	task3 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	task3 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
 	start := time.Now()
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -33,26 +65,41 @@ func TestOrchestrate_SuccessAllTasks(test *testing.T) {
 	if diff > 100*time.Millisecond {
 		test.Errorf("Too late")
 	}
-	res1, _ := FindResult(outputs, task1)
-	res2, _ := FindResult(outputs, task2)
-	res3, _ := FindResult(outputs, task3)
 
-	if err != nil || !(res1 && res2 == "test" && res3) {
+	if err != nil || !(task1.result && task2.Result() == "test" && task3.Result()) {
 		test.Errorf("One or more failed")
 	}
 }
 
 func TestOrchestrate_TimeOut(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[bool](func() (bool, error) {
-		time.Sleep(2 * time.Second)
-		return true, nil
+	task2 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -63,27 +110,52 @@ func TestOrchestrate_TimeOut(test *testing.T) {
 		test.Errorf("Failed to handle error")
 	}
 
-	_, exist := FindResult(outputs, task2)
-	if exist {
+	if task2.Result() {
 		test.Errorf("Failed to cancel task2")
 	}
 }
 
 func TestOrchestrate_CancelTask(test *testing.T) {
-	task1 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	defer goleak.VerifyNone(test)
+
+	task1 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(10 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
-	task2 := NewTask[string](func() (string, error) {
-		time.Sleep(20 * time.Millisecond)
-		return "", errors.New("task2 error occurred")
+	task2 := NewTask[string](func(ctx context.Context) (string, error) {
+		t := time.NewTicker(20 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-t.C:
+				return "", errors.New("task2 error occurred")
+			}
+		}
 	})
-	task3 := NewTask[bool](func() (bool, error) {
-		time.Sleep(10 * time.Millisecond)
-		return true, nil
+	task3 := NewTask[bool](func(ctx context.Context) (bool, error) {
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-t.C:
+				return true, nil
+			}
+		}
 	})
 
-	outputs, err := Orchestrate(
+	err := Orchestrate(
 		context.Background(),
 		task1.Run(),
 		task2.Run(),
@@ -93,8 +165,7 @@ func TestOrchestrate_CancelTask(test *testing.T) {
 		test.Errorf("Failed to handle error")
 	}
 
-	_, exist := FindResult(outputs, task3)
-	if exist {
+	if task3.Result() {
 		test.Errorf("Failed to cancel task3")
 	}
 }
