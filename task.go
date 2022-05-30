@@ -2,21 +2,18 @@ package goctopus
 
 import (
 	"context"
-	"math/rand"
 )
 
 type AsyncTask func(ctx context.Context) error
 
 type Task[T any] struct {
-	id     uint32
 	f      func(ctx context.Context) (T, error)
 	result T
 }
 
 func NewTask[T any](f func(ctx context.Context) (T, error)) Task[T] {
 	return Task[T]{
-		id: rand.Uint32(),
-		f:  f,
+		f: f,
 	}
 }
 

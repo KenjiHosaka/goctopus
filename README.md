@@ -22,10 +22,17 @@ task2 := goctopus.NewTask[string](func(ctx context.Context) (string, error) {
 	return "result", nil
 })
 
-err := goctopus.Orchestrate(
+err := goctopus.OrchestrateRuns(
 	context.Background(), 
 	task1.Run(), 
 	task2.Run(), 
+)()
+
+// same type results
+tasks := []*goctopus.Task{&task1}
+err := goctopus.OrchestrateTasks(
+	context.Background(), 
+	tasks,
 )()
 
 // Get Result
@@ -36,7 +43,7 @@ res := task2.Result()
 
 ### Set Timeout
 ```golang
-err := goctopus.Orchestrate(
+err := goctopus.OrchestrateRuns(
 	// ...
 )(goctopus.TimeOut{
 	Duration: 1 * time.Second,
